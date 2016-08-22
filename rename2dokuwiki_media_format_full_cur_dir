@@ -1,0 +1,76 @@
+#!/bin/bash
+
+#rename2docuwiki="/root/upper2lower/rename2dokuwiki_media_format"
+upper2lower="/root/upper2lower/upper2lower"
+
+src_dir="${1}"
+dst_dir="${2}"
+
+if [ ! -f ${upper2lower} ]
+then 
+	echo "не могу найти upper2lower преобразования имён: ${upper2lower}"
+	exit 1
+fi
+
+if [ -z $2 ]
+then
+	echo "Скрипт перобразует директорию с файлами в директорию с такой же иерархией вложенных директорий и файлов, но с именами приведёнными к формату dokuwiki"
+	echo "Использование:"
+	echo "$0 директория_с_файлами_для_преобразования директория_для_преобразованных_файлов"
+	echo "Директории указывать от корня"
+	exit 1
+fi
+
+find "${src_dir}" -type d| while read dir
+do
+	echo "Обработка директории ${dir}"
+	#new_file_name=`echo "${dir}"|${upper2lower}|sed "s/\+/_/g;s/,/_/g;s/–/_/g"|tr " " "_"|tr "(" "_"|tr ")" "_"|sed "s/№/_/g;s/-/_/g;s/!/_/g;s/__/_/g;s/__/_/g;s/^_/1/g"|sed "s/__/_/g;s/_*$//"`
+	new_file_name=`echo "${dir}"|${upper2lower}|sed "s/\+/_/g;s/,/_/g;s/–/_/g"|tr " " "_"|tr "(" "_"|tr ")" "_"|sed "s/№/_/g;s/=/_/g;s/-/_/g;s/\!/_/g;s/__/_/g;s/__/_/g;s/^_/1/g"|sed "s/__/_/g;s/_*\//\//g;s/_*$//"|sed "s/\/_*/\//g"`
+	
+	if [ -f "${dst_dir}/${new_file_name}" ]
+	then
+		echo "Файл ${dst_dir}/${new_file_name} уже существует, подбираю другое имя..."
+		for ((i=0;i<1000;i++))
+		do
+			file_name="копия_имени${i}_${new_file_name}"
+			if [ ! -f "${dst_dir}/${file_name}" ]
+			then
+				new_file_name="${file_name}"
+				break;
+			else
+				echo "Файл ${dst_dir}/${file_name} уже существует, подбираю другое имя..."
+			fi
+		done
+	fi
+	new_dst_dir="${dst_dir}/${new_file_name}"	
+	mkdir -p "${new_dst_dir}"
+	echo "Создаю директорию: ${new_dst_dir}"
+
+	# Копируем файлы:
+
+		cd "${dir}"
+		for current_file in *
+		do
+			echo "Обрабатываю файл: ${dir}/${current_file}"
+		new_file_name=`echo "${current_file}"|/usr/local/bin/upper2lower|sed "s/\+/_/g;s/,/_/g;s/–/_/g"|tr " " "_"|tr "(" "_"|tr ")" "_"|sed "s/№/_/g;s/=/_/g;s/-/_/g;s/\!/_/g;s/__/_/g;s/__/_/g;s/^_/1/g"|sed "s/__/_/g;s/_*\//\//g;s/_*$//"|sed "s/\/_*/\//g"`
+			
+		if [ -f "${new_dst_dir}/${new_file_name}" ]
+		then
+			echo "Файл ${dst_dir}/${new_file_name} уже существует, подбираю другое имя..."
+			for ((i=0;i<1000;i++))
+			do
+				file_name="копия_имени${i}_${new_file_name}"
+				if [ ! -f "${new_dst_dir}/${file_name}" ]
+				then
+					new_file_name="${file_name}"
+					break;
+				else
+					echo "Файл ${new_dst_dir}/${file_name} уже существует, подбираю другое имя..."
+				fi
+			done
+		fi
+		echo "копирую с переименованием ${dir}/${current_file} в ${new_dst_dir}/${new_file_name}"
+		cp "${dir}/${current_file}" "${new_dst_dir}/${new_file_name}"
+		done
+done
+

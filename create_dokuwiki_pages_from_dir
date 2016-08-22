@@ -1,0 +1,79 @@
+#!/bin/bash
+
+pages_prefix="${1}"
+files_prefix="${2}"
+src_dir="${3}"
+dst_dir="${4}"
+
+
+if [ -z $4 ]
+then
+	echo "Скрипт формирует набор страниц из файлов в переданной директории"
+	echo "Использование:"
+	echo "$0 префикс_от_корня_страниц префикс_от_корня_файлов директория_с_файлами_для_преобразования_указанная_как_имя_директории_в_текущем_каталоге директория_где_будут_создаваться_страницы_dokuwiki_путь_от_корня"
+	echo "Пример:"
+	echo "У нас есть дерево каталогов и файлов: /dokuwiki_media/служба_эксплуатации/схемы_сп_в_jpeg/ на которые мы хотим сформировать страницы dokuwiki в /dokuwiki_pages/служба_эксплуатации/схемы_сп_в_jpeg , тогда выполняем команды:"
+	echo "cd /dokuwiki_media/служба_эксплуатации/"
+	echo "$0 служба_эксплуатации служба_эксплуатации схемы_сп_в_jpeg /dokuwiki_pages/служба_эксплуатации/"
+	echo "если префикс не нужен, то передавайте параметром префикса точку"
+	exit 1
+fi
+
+find "${src_dir}" -type d|sort| while read dir
+do
+	echo "Обработка директории ${dir}"
+
+	cur_page_name_txt="`echo ${dir}|sed 's/\/$//;s/$/.txt/;s/.*\///'`"
+	cur_page_name="`echo ${dir}|sed 's/\/$//;s/.*\///'`"
+	cur_page_name_dir="${dst_dir}/${dir}"
+	cur_page_name_path="${cur_page_name_dir}/${cur_page_name_txt}"
+	mkdir -p "${cur_page_name_dir}"
+
+    # Формируем заголовок страницы, чтобы работал поиск:
+    echo "====== ${cur_page_name} ======" >> "${cur_page_name_path}"
+
+	echo "Формируем ссылки на директории более низкого уровня:"
+	find "${dir}" -type d -maxdepth 1|sort|while read path_to_page
+	do
+		if [ ${dir} == ${path_to_page} ]
+		then
+			echo "Не обрабатываю текущую директорию ${path_to_page} как ссылку"
+			continue
+		fi
+		echo "Формирую ссылку на ${path_to_page}"
+		# Странице в одной директории (могут быть дубли и наложения содержимого):
+		#page_name="`echo ${path_to_page}|sed 's/\/$//;s/.*\///'`"
+		#filename=`echo ":${pages_prefix}:${page_name}"|sed "s/::/:/g"|sed "s/::/:/g"`
+
+		# У страниц такая же иерархия как и у файлов:
+		page_name="`echo ${path_to_page}|sed 's/\/$//;s/.*\///'`"
+		dokuwiki_path_to_page=`echo ${path_to_page}|sed 's/^\.//;s/\//:/g'`
+		if [ "." == "${pages_prefix}" ]
+		then
+				filename=`echo ":${dokuwiki_path_to_page}:${page_name}"|sed "s/::/:/g"|sed "s/::/:/g"`
+		else
+				filename=`echo ":${pages_prefix}:${dokuwiki_path_to_page}:${page_name}"|sed "s/::/:/g"|sed "s/::/:/g"`
+		fi
+		echo "  - [[${filename}|]]" >> "${cur_page_name_path}"
+	done
+
+	echo "Формируем ссылки на файлы"
+	find "${dir}" -type f -maxdepth 1|sort|while read path_to_file_name
+	do
+		echo "Формирую ссылку на ${path_to_file_name}"
+		dokuwiki_path_to_file=`echo ${path_to_file_name}|sed 's/^\.//;s/\//:/g'`
+		if [ "." == "${files_prefix}" ]
+		then
+				filename=`echo ":${dokuwiki_path_to_file}"|sed "s/::/:/g"|sed "s/::/:/g"`
+		else
+				filename=`echo ":${files_prefix}:${dokuwiki_path_to_file}"|sed "s/::/:/g"|sed "s/::/:/g"`
+		fi
+
+		echo "  - {{${filename}?linkonly|}}" >> "${cur_page_name_path}"
+	done
+done	
+
+chown www-data:www-data "${dst_dir}" -R
+
+exit 0
+

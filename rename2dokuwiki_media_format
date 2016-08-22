@@ -1,0 +1,53 @@
+#!/bin/bash
+if [ -z "${2}" ]
+then
+	echo "Переименовывает файлы в имена media-файлов для dokuwiki"
+	echo
+	echo "Использование (диретории указывать в виде полного поти от корня):"
+	echo "${0} директория_с_исходными_файлами директория_с_выходными_файлами"
+	exit 1
+fi
+
+src_dir="${1}"
+dst_dir="${2}"
+
+cd "${src_dir}"
+if [ ! 0 -eq $? ]
+then
+	echo "Ошибка смены директории на ${src_dir}"
+	exit 1
+fi
+
+find "${src_dir}" -type d|while read cur_dir
+do
+	echo "Обрабатываю директорию ${cur_dir}"
+	dst="${dst_dir}/${cur_dir}"
+	echo "dst=${dst}"
+	new_dst_dir=`echo "${dst}"|/usr/local/bin/upper2lower|sed "s/«/_/g;s/»/_/g;s/;/_/g;s/\+/_/g;s/,/_/g;s/–/_/g"|tr " " "_"|tr "(" "_"|tr ")" "_"|sed "s/№/_/g;s/-/_/g;s/!/_/g;s/__/_/g;s/__/_/g;s/^_/1/g"|sed "s/__/_/g"`
+	echo "Создаю ${new_dst_dir}"
+	mkdir -p "${new_dst_dir}"
+	cd "${cur_dir}"
+
+	for current_file in *
+	do
+	new_file_name=`echo "${current_file}"|/usr/local/bin/upper2lower|sed "s/«/_/g;s/»/_/g;s/;/_/g;s/\+/_/g;s/,/_/g;s/–/_/g"|tr " " "_"|tr "(" "_"|tr ")" "_"|sed "s/№/_/g;s/-/_/g;s/!/_/g;s/__/_/g;s/__/_/g;s/^_/1/g"|sed "s/__/_/g"`
+		
+	if [ -f "${new_dst_dir}/${new_file_name}" ]
+	then
+		echo "Файл ${new_dst_dir}/${new_file_name} уже существует, подбираю другое имя..."
+		for ((i=0;i<1000;i++))
+		do
+			file_name="копия_имени${i}_${new_file_name}"
+			if [ ! -f "${new_dst_dir}/${file_name}" ]
+			then
+				new_file_name="${file_name}"
+				break;
+			else
+				echo "Файл ${new_dst_dir}/${file_name} уже существует, подбираю другое имя..."
+			fi
+		done
+	fi
+	echo "копирую с переименованием ${cur_dir}/${current_file} в ${new_dst_dir}/${new_file_name}"
+	cp "${cur_dir}/${current_file}" "${new_dst_dir}/${new_file_name}"
+	done
+done
